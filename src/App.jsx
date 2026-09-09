@@ -24,9 +24,15 @@ export default function App() {
   const [shifts, setShifts] = useState([]);
   const [status, setStatus] = useState({ type: '', message: '' });
   const [loading, setLoading] = useState(false);
-  const [selectedColor, setSelectedColor] = useState('9'); // Default: Blue
+  const [selectedColor, setSelectedColor] = useState('2'); // Default: Green (Basil)
   const [isEditingMode, setIsEditingMode] = useState(false);
   const tokenClientRef = useRef(null);
+  
+  const stateRef = useRef({ shifts, selectedColor });
+  
+  useEffect(() => {
+    stateRef.current = { shifts, selectedColor };
+  }, [shifts, selectedColor]);
 
   useEffect(() => {
     const initClient = () => {
@@ -48,7 +54,7 @@ export default function App() {
       }
     };
     initClient();
-  }, [shifts]);
+  }, []);
 
   const getShiftName = (startH, endH) => {
     if (startH === 7 && endH === 15) return 'משמרת בוקר';
@@ -182,14 +188,17 @@ export default function App() {
   };
 
   const pushToGoogleCalendar = async (accessToken) => {
-    setStatus({ type: 'info', message: `מזריק ${shifts.length} משמרות ליומן...` });
+    const currentShifts = stateRef.current.shifts;
+    const currentColor = stateRef.current.selectedColor;
+    
+    setStatus({ type: 'info', message: `מזריק ${currentShifts.length} משמרות ליומן...` });
 
     let count = 0;
-    for (const shift of shifts) {
+    for (const shift of currentShifts) {
       const event = {
         summary: shift.title,
         description: 'הוזרק אוטומטית באמצעות ShiftInjection',
-        colorId: selectedColor,
+        colorId: currentColor,
         start: {
           dateTime: shift.start.toISOString(),
           timeZone: 'Asia/Jerusalem',
@@ -198,6 +207,10 @@ export default function App() {
           dateTime: shift.end.toISOString(),
           timeZone: 'Asia/Jerusalem',
         },
+        reminders: {
+          useDefault: false,
+          overrides: []
+        }
       };
 
       try {
@@ -216,12 +229,12 @@ export default function App() {
     }
 
     setLoading(false);
-    if (count === shifts.length) {
+    if (count === currentShifts.length) {
       setStatus({ type: 'success', message: `ההזרקה הושלמה בהצלחה! ${count} משמרות הוכנסו ליומן.` });
       setSmsText('');
       setShifts([]);
     } else {
-      setStatus({ type: 'info', message: `הועלו ${count} מתוך ${shifts.length} משמרות.` });
+      setStatus({ type: 'info', message: `הועלו ${count} מתוך ${currentShifts.length} משמרות.` });
     }
   };
 
