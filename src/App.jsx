@@ -27,6 +27,7 @@ export default function App() {
   const [selectedColor, setSelectedColor] = useState('2'); // Default: Green (Basil)
   const [isEditingMode, setIsEditingMode] = useState(false);
   const tokenClientRef = useRef(null);
+  const cachedTokenRef = useRef({ token: null, expiry: 0 });
   
   const stateRef = useRef({ shifts, selectedColor });
   
@@ -46,6 +47,11 @@ export default function App() {
               setLoading(false);
               return;
             }
+            // שמור את ה-Token ל-55 דקות (מסתיים ב-60, נשמרים 5 דקות מרווח)
+            cachedTokenRef.current = {
+              token: tokenResponse.access_token,
+              expiry: Date.now() + 55 * 60 * 1000
+            };
             await pushToGoogleCalendar(tokenResponse.access_token);
           },
         });
@@ -183,8 +189,15 @@ export default function App() {
     }
 
     setLoading(true);
-    setStatus({ type: 'info', message: 'ממתין לאישור בחשבון גוגל...' });
-    tokenClientRef.current.requestAccessToken({ prompt: '' });
+
+    // אם יש Token קיים ותקף - השתמש בו ישירות בלי לבקש שוב
+    const cached = cachedTokenRef.current;
+    if (cached.token && Date.now() < cached.expiry) {
+      pushToGoogleCalendar(cached.token);
+    } else {
+      setStatus({ type: 'info', message: 'ממתין לאישור בחשבון גוגל...' });
+      tokenClientRef.current.requestAccessToken({ prompt: '' });
+    }
   };
 
   const pushToGoogleCalendar = async (accessToken) => {
